@@ -1,0 +1,207 @@
+@import 'tailwindcss';
+
+/*
+ * data-theme="dark" enables dark mode. It's not used today (no toggle), but
+ * the tokens are already prepared: enabling dark mode when needed just means
+ * filling in the block below, not rewriting classes throughout the app.
+ */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces: cool neutral, no warm tint. */
+  --sb-canvas: #f8fafc; /* page background */
+  --sb-surface: #ffffff; /* cards, panels */
+  --sb-elevated: #f1f5f9; /* nested, pills */
+  --sb-inverse: #0f172a; /* near-black ink · admin header, dark CTA */
+
+  /* Text */
+  --sb-text: #0f172a;
+  --sb-text-secondary: #475569;
+  --sb-text-muted: #64748b; /* minimum that passes AA (4.5:1+) */
+  --sb-text-subtle: #94a3b8; /* decorative ONLY, fails AA as informative text */
+  --sb-text-inverse: #f8fafc;
+
+  /* Borders */
+  --sb-line: #e2e8f0;
+  --sb-line-strong: #cbd5e1; /* inputs */
+  --sb-line-subtle: #eef2f6; /* table rows */
+
+  /*
+   * Accent (emerald) = identity: links, focus, active tab, logo.
+   * Action (ink) = the primary button. Maximum contrast and avoids the
+   * "freshly-funded SaaS" look of a full-block saturated CTA.
+   */
+  --sb-accent: #059669; /* emerald */
+  --sb-accent-hover: #047857;
+  --sb-action: #0f172a;
+  --sb-action-hover: #1e293b;
+  --sb-ring: #059669; /* focus ring: same tone as the identity */
+
+  /* Default color OF THE CLIENT'S WIDGET, not the DocuBot brand. */
+  --sb-brand: #4f46e5;
+
+  /* State: bg / border / text per tone */
+  --sb-success-bg: #d1fae5;
+  --sb-success-border: #a7f3d0;
+  --sb-success-text: #047857;
+  --sb-warning-bg: #fef3c7;
+  --sb-warning-border: #fde68a;
+  --sb-warning-text: #b45309;
+  --sb-danger-bg: #ffe4e6;
+  --sb-danger-border: #fecdd3;
+  --sb-danger-text: #be123c;
+  --sb-danger-solid: #e11d48; /* destructive button/text */
+  --sb-info-bg: #f1f5f9;
+  --sb-info-border: #e2e8f0;
+  --sb-info-text: #475569;
+}
+
+[data-theme='dark'] {
+  /* Filled in when dark mode is enabled. */
+}
+
+@theme inline {
+  --color-canvas: var(--sb-canvas);
+  --color-surface: var(--sb-surface);
+  --color-elevated: var(--sb-elevated);
+  --color-inverse: var(--sb-inverse);
+
+  --color-content: var(--sb-text);
+  --color-content-secondary: var(--sb-text-secondary);
+  --color-content-muted: var(--sb-text-muted);
+  --color-content-subtle: var(--sb-text-subtle);
+  --color-content-inverse: var(--sb-text-inverse);
+
+  --color-line: var(--sb-line);
+  --color-line-strong: var(--sb-line-strong);
+  --color-line-subtle: var(--sb-line-subtle);
+
+  --color-accent: var(--sb-accent);
+  --color-accent-hover: var(--sb-accent-hover);
+  --color-action: var(--sb-action);
+  --color-action-hover: var(--sb-action-hover);
+  --color-ring: var(--sb-ring);
+  --color-brand: var(--sb-brand);
+
+  --color-success-bg: var(--sb-success-bg);
+  --color-success-border: var(--sb-success-border);
+  --color-success-text: var(--sb-success-text);
+  --color-warning-bg: var(--sb-warning-bg);
+  --color-warning-border: var(--sb-warning-border);
+  --color-warning-text: var(--sb-warning-text);
+  --color-danger-bg: var(--sb-danger-bg);
+  --color-danger-border: var(--sb-danger-border);
+  --color-danger-text: var(--sb-danger-text);
+  --color-danger-solid: var(--sb-danger-solid);
+  --color-info-bg: var(--sb-info-bg);
+  --color-info-border: var(--sb-info-border);
+  --color-info-text: var(--sb-info-text);
+
+  --font-sans: var(--font-sans-local), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-serif-local), ui-serif, Georgia, serif;
+}
+
+@theme {
+  --radius-card: 0.75rem; /* 12px · every card/panel */
+  --radius-control: 0.375rem; /* 6px · buttons and inputs */
+}
+
+body {
+  @apply bg-canvas text-content antialiased;
+  font-family: var(--font-sans);
+  /* The landing's full-bleed sections compute their width with 50vw, which
+     includes the scrollbar: without this, horizontal scroll would appear. */
+  overflow-x: hidden;
+}
+
+/* Typographic scale: one h1 per page, no ad-hoc per-file exceptions. */
+@layer components {
+  .t-h1 {
+    @apply text-2xl font-semibold tracking-tight text-content;
+  }
+  .t-hero {
+    @apply text-4xl font-semibold tracking-tight text-balance sm:text-5xl;
+  }
+  .t-h2 {
+    @apply text-lg font-semibold tracking-tight text-content;
+  }
+  .t-h3 {
+    @apply text-sm font-semibold text-content;
+  }
+  .t-eyebrow {
+    @apply text-xs font-medium uppercase tracking-widest text-content-muted;
+  }
+  .t-body {
+    @apply text-sm text-content-secondary;
+  }
+  .t-lead {
+    @apply text-lg text-content-secondary text-pretty;
+  }
+  .t-caption {
+    @apply text-xs text-content-muted;
+  }
+  .t-figure {
+    @apply text-2xl font-semibold tracking-tight tabular-nums;
+  }
+
+  /*
+   * Editorial headings on the landing: display serif, only there. No color
+   * of its own: it inherits text-content or text-content-inverse depending
+   * on the section (light or dark) it's used in.
+   */
+  .t-display {
+    font-family: var(--font-serif);
+    @apply font-medium tracking-tight text-balance;
+  }
+
+  /* Legal prose: Terms, Privacy, Cookies, DPA. */
+  .legal-prose {
+    @apply text-sm leading-relaxed text-content-secondary;
+  }
+  .legal-prose h2 {
+    @apply mt-10 scroll-mt-24 text-xl font-semibold tracking-tight text-content first:mt-0;
+  }
+  .legal-prose h3 {
+    @apply mt-6 text-base font-semibold text-content;
+  }
+  .legal-prose p {
+    @apply mt-4 text-pretty;
+  }
+  .legal-prose ul {
+    @apply mt-4 list-disc space-y-2 pl-5;
+  }
+  .legal-prose ol {
+    @apply mt-4 list-decimal space-y-2 pl-5;
+  }
+  .legal-prose li > ul,
+  .legal-prose li > ol {
+    @apply mt-2;
+  }
+  .legal-prose strong {
+    @apply font-semibold text-content;
+  }
+  .legal-prose a {
+    @apply text-accent underline underline-offset-2 hover:text-accent-hover;
+  }
+  .legal-prose table {
+    @apply mt-4 w-full border-collapse text-left text-sm;
+  }
+  .legal-prose th {
+    @apply border-b border-line-strong py-2 pr-4 font-semibold text-content;
+  }
+  .legal-prose td {
+    @apply border-b border-line py-2 pr-4 align-top;
+  }
+  .legal-prose .legal-note {
+    @apply mt-6 rounded-control border border-line bg-elevated px-4 py-3 text-sm text-content-secondary;
+  }
+
+  /* Focus skip link: first element of the body, visible only via keyboard. */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50
+      focus:rounded-control focus:bg-inverse focus:px-4 focus:py-2 focus:text-sm
+      focus:font-medium focus:text-content-inverse;
+  }
+}

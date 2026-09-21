@@ -1,0 +1,88 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: docubot
+      POSTGRES_PASSWORD: docubot
+      POSTGRES_DB: docubot
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docubot -d docubot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
+    restart: unless-stopped
+    command:
+      # Without proactor_threads, Dragonfly assumes 1 thread per host core,
+      # and on many-core machines that demands more RAM than a typical VPS
+      # free tier has. Fixed low because this queue's volume is small.
+      # allow-undeclared-keys is mandatory: BullMQ's Lua scripts access keys
+      # not explicitly declared in KEYS[], and without this flag Dragonfly
+      # rejects them (classic Redis doesn't require this).
+      - --proactor_threads=2
+      - --default_lua_flags=allow-undeclared-keys
+    ulimits:
+      memlock: -1
+    ports:
+      - "6379:6379"
+    volumes:
+      - dragonflydata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-h", "localhost", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    profiles: ["full"]
+    build: ./api
+    environment:
+      DATABASE_URL: postgres://docubot:docubot@db:5432/docubot
+      REDIS_URL: redis://dragonfly:6379
+      API_PORT: 3001
+      API_URL: http://localhost:3001
+      CORS_RELAXED: "false"
+      DASHBOARD_ORIGINS: http://localhost:3000
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      CHAT_BASE_URL: ${CHAT_BASE_URL:-https://api.openai.com/v1}
+      ADMIN_USER: ${ADMIN_USER:-owner}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me-admin}
+      BULL_BOARD_USER: ${BULL_BOARD_USER:-owner}
+      BULL_BOARD_PASSWORD: ${BULL_BOARD_PASSWORD:-change-me-admin}
+      INGEST_FILE_CONCURRENCY: ${INGEST_FILE_CONCURRENCY:-4}
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+      dragonfly:
+        condition: service_healthy
+    volumes:
+      - modelcache:/root/.cache/huggingface
+
+  web:
+    profiles: ["full"]
+    build: ./web
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      API_URL: http://api:3001
+      ADMIN_USER: ${ADMIN_USER:-owner}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me-admin}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  modelcache:
+  dragonflydata:
