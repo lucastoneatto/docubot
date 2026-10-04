@@ -62,7 +62,15 @@ export async function createCollectionAction(formData: FormData) {
   const name = String(formData.get('name') ?? '').trim();
   if (!name) return;
 
-  const collection = await api.createCollection(name);
+  let collection: Awaited<ReturnType<typeof api.createCollection>>;
+  try {
+    collection = await api.createCollection(name);
+  } catch {
+    // Transient API failure (e.g. a redeploy mid-request): stay on the
+    // dashboard instead of crashing to the generic error boundary.
+    revalidatePath('/dashboard');
+    return;
+  }
   revalidatePath('/dashboard');
   redirect(`/dashboard/collections/${collection.id}`);
 }
@@ -70,7 +78,13 @@ export async function createCollectionAction(formData: FormData) {
 export async function deleteCollectionAction(formData: FormData) {
   const id = String(formData.get('id') ?? '');
   if (!id) return;
-  await api.deleteCollection(id);
+  try {
+    await api.deleteCollection(id);
+  } catch {
+    // Transient API failure: collection stays listed, user can retry.
+    revalidatePath('/dashboard');
+    return;
+  }
   revalidatePath('/dashboard');
   redirect('/dashboard');
 }
@@ -84,7 +98,11 @@ export async function deleteCollectionAction(formData: FormData) {
  */
 export async function uploadFilesAction(id: string, formData: FormData) {
   if (!id) return;
-  await api.uploadFiles(id, formData);
+  try {
+    await api.uploadFiles(id, formData);
+  } catch {
+    // Transient API failure: user can retry the upload.
+  }
   revalidatePath(`/dashboard/collections/${id}`);
 }
 
@@ -92,7 +110,11 @@ export async function deleteDocumentAction(formData: FormData) {
   const id = String(formData.get('id') ?? '');
   const documentId = String(formData.get('documentId') ?? '');
   if (!id || !documentId) return;
-  await api.deleteDocument(id, documentId);
+  try {
+    await api.deleteDocument(id, documentId);
+  } catch {
+    // Transient API failure: document stays listed, user can retry.
+  }
   revalidatePath(`/dashboard/collections/${id}`);
 }
 
@@ -105,25 +127,29 @@ export async function updateSettingsAction(formData: FormData) {
     .map((line) => line.trim())
     .filter(Boolean);
 
-  await api.updateCollection(id, {
-    name: String(formData.get('name') ?? '').trim() || undefined,
-    allowedOrigins: origins,
-    settings: {
-      color: String(formData.get('color') ?? '').trim() || undefined,
-      greeting: String(formData.get('greeting') ?? '').trim() || undefined,
-      // Empty string = the user cleared their prompt, must be persisted.
-      customPrompt: String(formData.get('customPrompt') ?? '').trim(),
-      temperature: formData.get('temperature')
-        ? Number(formData.get('temperature'))
-        : undefined,
-      maxFiles: formData.get('maxFiles')
-        ? Number(formData.get('maxFiles'))
-        : undefined,
-      maxFileSizeMb: formData.get('maxFileSizeMb')
-        ? Number(formData.get('maxFileSizeMb'))
-        : undefined,
-    },
-  });
+  try {
+    await api.updateCollection(id, {
+      name: String(formData.get('name') ?? '').trim() || undefined,
+      allowedOrigins: origins,
+      settings: {
+        color: String(formData.get('color') ?? '').trim() || undefined,
+        greeting: String(formData.get('greeting') ?? '').trim() || undefined,
+        // Empty string = the user cleared their prompt, must be persisted.
+        customPrompt: String(formData.get('customPrompt') ?? '').trim(),
+        temperature: formData.get('temperature')
+          ? Number(formData.get('temperature'))
+          : undefined,
+        maxFiles: formData.get('maxFiles')
+          ? Number(formData.get('maxFiles'))
+          : undefined,
+        maxFileSizeMb: formData.get('maxFileSizeMb')
+          ? Number(formData.get('maxFileSizeMb'))
+          : undefined,
+      },
+    });
+  } catch {
+    // Transient API failure: settings keep their previous values, user can retry.
+  }
   revalidatePath(`/dashboard/collections/${id}`);
   revalidatePath(`/dashboard/collections/${id}/preview`);
 }
@@ -178,7 +204,11 @@ export async function setPlanAction(formData: FormData) {
   const userId = String(formData.get('userId') ?? '');
   const plan = String(formData.get('plan') ?? '');
   if (!userId || (plan !== 'free' && plan !== 'paid')) return;
-  await adminApi.setPlan(userId, plan);
+  try {
+    await adminApi.setPlan(userId, plan);
+  } catch {
+    // Transient API failure: plan keeps its previous value, admin can retry.
+  }
   revalidatePath('/admin/users');
 }
 
@@ -193,9 +223,13 @@ function parseQuota(value: FormDataEntryValue | null): number | null {
 export async function setQuotaAction(formData: FormData) {
   const collectionId = String(formData.get('collectionId') ?? '');
   if (!collectionId) return;
-  await adminApi.setQuota(collectionId, {
-    monthlyMessageLimit: parseQuota(formData.get('monthlyMessageLimit')),
-    monthlyBudgetUsd: parseQuota(formData.get('monthlyBudgetUsd')),
-  });
+  try {
+    await adminApi.setQuota(collectionId, {
+      monthlyMessageLimit: parseQuota(formData.get('monthlyMessageLimit')),
+      monthlyBudgetUsd: parseQuota(formData.get('monthlyBudgetUsd')),
+    });
+  } catch {
+    // Transient API failure: quota keeps its previous value, admin can retry.
+  }
   revalidatePath('/admin/collections');
 }
