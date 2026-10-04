@@ -16,6 +16,10 @@ RUN corepack enable
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# NEXT_PUBLIC_* se inlinea en el bundle del cliente en build-time, no runtime:
+# tiene que llegar como build arg, no alcanza con pasarlo al contenedor final.
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN pnpm build
 
 FROM node:24-slim AS runner
