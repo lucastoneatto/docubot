@@ -53,9 +53,11 @@ tienen default razonable en el compose y solo hace falta cargarlas si se quiere 
 - **Cache de embeddings:** el volumen `modelcache` persiste el modelo de `Xenova/multilingual-e5-small` entre
   deploys — sin él, cada build/restart de `api` re-descarga el modelo (~100MB+) antes de poder ingestar o
   responder un chat.
-- **Migraciones:** correrlas a mano desde el VPS después del primer deploy (y tras cada migración nueva):
-  `sudo docker exec <container-api> sh -c 'cd /app && pnpm db:migrate'` (ajustar el nombre real del contenedor,
-  Dokploy lo arma como `<proyecto>-api-1`).
+- **Migraciones:** se corren solas — el `command` del servicio `api` en este compose hace
+  `pnpm db:migrate && node dist/main.js`, así que cada arranque/rebuild aplica las migraciones pendientes antes
+  de levantar el server (idempotente, drizzle lleva registro de las ya aplicadas). No hace falta correrlas a
+  mano salvo que el contenedor `api` haya quedado crasheado de antes (en ese caso, migrar primero con un
+  contenedor aparte en la misma red — ver "Trampas conocidas" — y después `docker restart`).
 - **Logs de build:** `/etc/dokploy/logs/<proyecto>/` en el VPS, o desde la UI.
 
 ## Trampas conocidas
@@ -70,3 +72,7 @@ tienen default razonable en el compose y solo hace falta cargarlas si se quiere 
   persistente en `/etc/fstab`).
 - **Panel admin sin credenciales:** si `ADMIN_USER`/`ADMIN_PASSWORD` o `BULL_BOARD_USER`/`BULL_BOARD_PASSWORD`
   faltan o tienen menos de 12 caracteres, la API no levanta en producción (falla el boot, no solo el login).
+- **Migrar a mano si `api` ya quedó crasheando en loop** (por ejemplo, en un deploy viejo sin este `command`):
+  no se puede `docker exec` en un contenedor que reinicia constantemente. Correr un contenedor aparte en la
+  misma red en su lugar: `sudo docker run --rm --network <proyecto>_default -e DATABASE_URL=<la del contenedor
+  api> <proyecto>-api sh -c 'pnpm db:migrate'`, y después `sudo docker restart <container-api>`.

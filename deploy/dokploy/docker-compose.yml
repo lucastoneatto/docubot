@@ -43,6 +43,10 @@ services:
     build:
       context: ../../api
     restart: unless-stopped
+    # Corre las migraciones pendientes antes de levantar el server, en cada
+    # arranque/rebuild — db:migrate es idempotente (drizzle lleva registro de
+    # las ya aplicadas), así que no hace falta correrlas a mano en el VPS.
+    command: sh -c "pnpm db:migrate && node dist/main.js"
     environment:
       DATABASE_URL: postgres://docubot:${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD}@db:5432/docubot
       REDIS_URL: redis://dragonfly:6379
