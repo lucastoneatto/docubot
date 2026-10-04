@@ -1,10 +1,18 @@
 # Proyecto "Compose" en Dokploy para docubot. Dokploy clona el repo, escribe un .env al lado de este
 # archivo a partir de las variables que cargues en su panel, y corre esto. Se expone agregando dominios
-# desde la UI de Dokploy, uno por servicio ("api" puerto 3001, "web" puerto 3000) — Traefik hace el resto.
+# desde la UI de Dokploy, uno por servicio ("docubot-api" puerto 3001, "docubot-web" puerto 3000) —
+# Traefik hace el resto.
+#
+# Los nombres de servicio llevan el prefijo "docubot-" (en vez de "api"/"db"/etc genéricos) porque
+# Dokploy conecta TODOS los proyectos a una misma red compartida ("dokploy-network") para que Traefik
+# pueda rutear. En esa red, el alias DNS de un servicio es literalmente su nombre — con nombres
+# genéricos, dos proyectos con un servicio "api" colisionan y el DNS interno de Docker responde con
+# cualquiera de los dos contenedores de forma intermitente (visto en producción: sitebot-web resolviendo
+# "api" a veces pegaba contra el api de docubot). Ver deploy/dokploy/README.md § Trampas conocidas.
 name: docubot
 
 services:
-  db:
+  docubot-db:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
@@ -19,7 +27,7 @@ services:
       timeout: 5s
       retries: 10
 
-  dragonfly:
+  docubot-dragonfly:
     image: docker.dragonflydb.io/dragonflydb/dragonfly
     restart: unless-stopped
     command:
@@ -39,7 +47,7 @@ services:
       timeout: 5s
       retries: 10
 
-  api:
+  docubot-api:
     build:
       context: ../../api
     restart: unless-stopped
@@ -48,8 +56,8 @@ services:
     # las ya aplicadas), así que no hace falta correrlas a mano en el VPS.
     command: sh -c "pnpm db:migrate && node dist/main.js"
     environment:
-      DATABASE_URL: postgres://docubot:${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD}@db:5432/docubot
-      REDIS_URL: redis://dragonfly:6379
+      DATABASE_URL: postgres://docubot:${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD}@docubot-db:5432/docubot
+      REDIS_URL: redis://docubot-dragonfly:6379
       API_PORT: 3001
       API_URL: ${API_URL:?Falta API_URL}
       CORS_RELAXED: "false"
@@ -77,9 +85,9 @@ services:
       PRICE_CHAT_OUTPUT_PER_M: ${PRICE_CHAT_OUTPUT_PER_M:-0.60}
       PRICE_EMBEDDING_PER_M: ${PRICE_EMBEDDING_PER_M:-0.02}
     depends_on:
-      db:
+      docubot-db:
         condition: service_healthy
-      dragonfly:
+      docubot-dragonfly:
         condition: service_healthy
     volumes:
       # Cache del modelo de embeddings local (Xenova/transformers.js): sin esto se
@@ -88,7 +96,7 @@ services:
     expose:
       - "3001"
 
-  web:
+  docubot-web:
     build:
       context: ../../web
       args:
@@ -97,11 +105,11 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Falta NEXT_PUBLIC_API_URL}
     restart: unless-stopped
     environment:
-      API_URL: http://api:3001
+      API_URL: http://docubot-api:3001
       ADMIN_USER: ${ADMIN_USER:?Falta ADMIN_USER}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Falta ADMIN_PASSWORD}
     depends_on:
-      - api
+      - docubot-api
     expose:
       - "3000"
 
